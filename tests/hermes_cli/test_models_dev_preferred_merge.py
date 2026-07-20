@@ -116,7 +116,12 @@ class TestProviderModelIdsPreferred:
         ):
             out = provider_model_ids("kimi-coding")
         # Curated-first order; curated newest (k3) stays ahead of live.
-        assert out[:3] == ["kimi-k3", "kimi-k2.7-code", "kimi-k2.6"]
+        assert out[:4] == [
+            "kimi-k3",
+            "kimi-k2.7-code-highspeed",
+            "kimi-k2.7-code",
+            "kimi-k2.6",
+        ]
 
     def test_k3_live_discovery_is_scoped_to_kimi_coding_endpoint(self):
         """Coding keys discover K3; legacy Moonshot keys must not advertise it."""
