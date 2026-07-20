@@ -24,7 +24,7 @@ interface ModelPickerDialogProps {
   sessionId?: string | null
   currentModel: string
   currentProvider: string
-  onSelect: (selection: { provider: string; model: string }) => void
+  onSelect: (selection: { provider: string; model: string }) => boolean | void | Promise<boolean | void>
   /**
    * Optional class to apply to DialogContent. Use to override z-index when
    * stacking the picker on top of another fixed overlay (e.g. the desktop
@@ -76,8 +76,22 @@ export function ModelPickerDialog({
     : null
 
   const selectModel = (provider: ModelOptionProvider, model: string) => {
-    onSelect({ provider: provider.slug, model })
-    onOpenChange(false)
+    const result = onSelect({ provider: provider.slug, model })
+
+    // Keep the dialog open when the async switch fails.  Live Desktop sessions
+    // reject model changes while a turn is running ("session busy"); closing
+    // the picker optimistically made that legitimate failure look like a dead
+    // click because the visible model stayed unchanged after the rollback.
+    Promise.resolve(result)
+      .then(ok => {
+        if (ok !== false) {
+          onOpenChange(false)
+        }
+      })
+      .catch(() => {
+        // The owner (useModelControls/onboarding) already owns error handling.
+        // Leaving the dialog open makes retry-after-idle obvious.
+      })
   }
 
   // Open the full onboarding provider selector to add/switch a provider.
