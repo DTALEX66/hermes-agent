@@ -255,6 +255,7 @@ def build_models_payload(
         _apply_pricing(rows, force_fresh_nous_tier=force_fresh_nous_tier)
     if capabilities:
         _apply_capabilities(rows)
+    rows = _apply_custom_model_lanes(rows, ctx)
 
     return {
         "providers": rows,
@@ -302,6 +303,82 @@ def _apply_capabilities(rows: list[dict]) -> None:
 
 
 # ─── Internal: row post-processing ──────────────────────────────────────
+
+
+def _apply_custom_model_lanes(rows: list[dict], ctx: ConfigContext) -> list[dict]:
+    """Optionally replace the picker payload with user-curated lanes.
+
+    This is a presentation filter only: typed ``/model`` and the underlying
+    provider registry remain unchanged.
+    """
+    try:
+        from hermes_cli.config import load_config
+
+        cfg = load_config()
+    except Exception:
+        return rows
+
+    picker_cfg = cfg.get("model_picker") if isinstance(cfg, dict) else None
+    if not isinstance(picker_cfg, dict):
+        return rows
+    custom_cfg = picker_cfg.get("custom_lanes")
+    if isinstance(custom_cfg, dict):
+        if not custom_cfg.get("enabled", False):
+            return rows
+        lanes = custom_cfg.get("lanes")
+    else:
+        lanes = custom_cfg
+    if not isinstance(lanes, list) or not lanes:
+        return rows
+
+    by_slug = {str(row.get("slug", "")).strip().lower(): row for row in rows}
+    curated: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+    current_provider = str(ctx.current_provider or "").strip().lower()
+    current_model = str(ctx.current_model or "").strip().lower()
+    for lane in lanes:
+        if not isinstance(lane, dict):
+            continue
+        provider = str(lane.get("provider") or lane.get("slug") or "").strip()
+        models_value = lane.get("models")
+        if isinstance(models_value, list):
+            lane_models = [str(model).strip() for model in models_value if str(model).strip()]
+        else:
+            lane_models = [str(lane.get("model") or lane.get("id") or "").strip()]
+        if not provider or not lane_models:
+            continue
+        key = (provider.lower(), "\0".join(model.lower() for model in lane_models))
+        if key in seen:
+            continue
+        seen.add(key)
+
+        base = dict(by_slug.get(provider.lower(), {}))
+        base["slug"] = provider
+        label = str(lane.get("label") or lane.get("name") or "").strip()
+        base["name"] = label or base.get("name") or provider
+        description = str(lane.get("description") or "").strip()
+        if description:
+            base["description"] = description
+            base["tui_desc"] = description
+        base["models"] = lane_models
+        base["total_models"] = len(lane_models)
+        base["source"] = lane.get("source") or base.get("source") or "custom-lanes"
+        base["is_current"] = provider.lower() == current_provider and current_model in {
+            model.lower() for model in lane_models
+        }
+        base["lane_label"] = label or base["name"]
+        if lane.get("base_url"):
+            base["base_url"] = str(lane.get("base_url"))
+        if isinstance(base.get("capabilities"), dict):
+            base["capabilities"] = {
+                model: base["capabilities"].get(model, {}) for model in lane_models
+            }
+        if isinstance(base.get("pricing"), dict):
+            base["pricing"] = {
+                model: base["pricing"].get(model, {}) for model in lane_models
+            }
+        curated.append(base)
+    return curated or rows
 
 
 def _append_unconfigured_rows(

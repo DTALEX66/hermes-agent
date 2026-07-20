@@ -313,6 +313,87 @@ def test_cli_model_picker_forwards_force_refresh_to_probe_flags():
     assert mock_list.call_args.kwargs["probe_current_custom_provider"] is False
 
 
+def test_build_models_payload_applies_user_custom_lanes():
+    """Custom lanes narrow picker rows without changing runtime routing."""
+    rows = [
+        {
+            "slug": "kimi-coding",
+            "name": "Kimi",
+            "models": ["kimi-k3", "kimi-k2.7-code"],
+            "total_models": 2,
+            "is_current": True,
+            "is_user_defined": False,
+            "source": "built-in",
+        },
+        {
+            "slug": "deepseek",
+            "name": "DeepSeek",
+            "models": ["deepseek-v4-flash", "deepseek-chat"],
+            "total_models": 2,
+            "is_current": False,
+            "is_user_defined": False,
+            "source": "built-in",
+        },
+        {
+            "slug": "openai-codex",
+            "name": "OpenAI Codex",
+            "models": ["gpt-5.6-sol", "gpt-5.5"],
+            "total_models": 2,
+            "is_current": False,
+            "is_user_defined": False,
+            "source": "hermes",
+        },
+    ]
+    cfg = {
+        "model_picker": {
+            "custom_lanes": {
+                "enabled": True,
+                "lanes": [
+                    {
+                        "label": "KIMI",
+                        "provider": "kimi-coding",
+                        "models": ["kimi-k3", "kimi-k2.7-code"],
+                    },
+                    {
+                        "label": "DEEPSEEK V4",
+                        "provider": "deepseek",
+                        "models": ["deepseek-v4-pro", "deepseek-v4-flash"],
+                    },
+                    {
+                        "label": "CHATGPT 5.6",
+                        "provider": "openai-codex",
+                        "models": ["gpt-5.6-sol", "gpt-5.6-terra"],
+                    },
+                ],
+            },
+        },
+    }
+    ctx = _empty_ctx(provider="kimi-coding", model="kimi-k3")
+    with _list_auth_returning(rows), patch(
+        "hermes_cli.config.load_config", return_value=cfg
+    ):
+        payload = build_models_payload(ctx)
+
+    assert [
+        (row["name"], row["slug"], row["models"], row["is_current"])
+        for row in payload["providers"]
+    ] == [
+        ("KIMI", "kimi-coding", ["kimi-k3", "kimi-k2.7-code"], True),
+        (
+            "DEEPSEEK V4",
+            "deepseek",
+            ["deepseek-v4-pro", "deepseek-v4-flash"],
+            False,
+        ),
+        (
+            "CHATGPT 5.6",
+            "openai-codex",
+            ["gpt-5.6-sol", "gpt-5.6-terra"],
+            False,
+        ),
+    ]
+
+
 def test_list_authenticated_providers_force_fresh_is_keyword_only():
     """``force_fresh_nous_tier`` must be keyword-only on the public listing API.
 
