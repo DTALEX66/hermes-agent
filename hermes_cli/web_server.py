@@ -19338,6 +19338,11 @@ def start_server(
             # `dashboard` keeps the legacy one. The desktop matches either.
             ready_token = "HERMES_BACKEND_READY" if headless else "HERMES_DASHBOARD_READY"
             print(f"{ready_token} port={actual_port}", flush=True)
+            # Compatibility for older Windows desktop shells.  Some shipped
+            # desktop builds still wait specifically for the legacy dashboard
+            # sentinel even when they launch `serve` in headless mode.
+            if headless:
+                print(f"HERMES_DASHBOARD_READY port={actual_port}", flush=True)
             if headless:
                 # No SPA, and the JSON-RPC/WS endpoints are auth-gated — don't
                 # advertise a paste-and-connect URL, just announce the bind.
