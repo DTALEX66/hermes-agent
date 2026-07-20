@@ -74,6 +74,30 @@ class TestKimiProfileParity:
         assert "thinking" not in profile.get("extra_body", {})
         assert "thinking" not in legacy.get("extra_body", {})
 
+    def test_reasoning_effort_medium_maps_to_kimi_high(self, transport):
+        rc = {"enabled": True, "effort": "medium"}
+        profile = transport.build_kwargs(
+            model="kimi-k3",
+            messages=_msgs(),
+            tools=None,
+            provider_profile=get_provider_profile("kimi"),
+            reasoning_config=rc,
+        )
+        assert profile["reasoning_effort"] == "high"
+        assert "thinking" not in profile.get("extra_body", {})
+
+    def test_reasoning_effort_max_is_valid_for_kimi_k3(self, transport):
+        rc = {"enabled": True, "effort": "max"}
+        profile = transport.build_kwargs(
+            model="kimi-k3",
+            messages=_msgs(),
+            tools=None,
+            provider_profile=get_provider_profile("kimi"),
+            reasoning_config=rc,
+        )
+        assert profile["reasoning_effort"] == "max"
+        assert "thinking" not in profile.get("extra_body", {})
+
     def test_thinking_disabled(self, transport):
         rc = {"enabled": False}
         legacy = transport.build_kwargs(

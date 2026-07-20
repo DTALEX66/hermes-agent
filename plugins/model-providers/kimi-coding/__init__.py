@@ -87,7 +87,13 @@ class KimiProfile(ProviderProfile):
         # Enabled: prefer an explicit effort; only fall back to extra_body
         # thinking when no recognized effort is requested.
         effort = (reasoning_config.get("effort") or "").strip().lower()
-        if effort in {"low", "medium", "high"}:
+        # Kimi K3 officially supports low/high/max.  Keep accepting the
+        # historical Hermes "medium" value by mapping it to "high" instead of
+        # falling back to the server default (currently max), which makes
+        # normal chat feel much slower.
+        if effort == "medium":
+            effort = "high"
+        if effort in {"low", "high", "max"}:
             top_level["reasoning_effort"] = effort
         else:
             extra_body["thinking"] = {"type": "enabled"}

@@ -401,7 +401,9 @@ class ChatCompletionsTransport(ProviderTransport):
                 _kimi_effort = "medium"
                 if reasoning_config and isinstance(reasoning_config, dict):
                     _e = (reasoning_config.get("effort") or "").strip().lower()
-                    if _e in {"low", "medium", "high"}:
+                    if _e == "medium":
+                        _e = "high"
+                    if _e in {"low", "high", "max"}:
                         _kimi_effort = _e
                 api_kwargs["reasoning_effort"] = _kimi_effort
 

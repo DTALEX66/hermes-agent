@@ -1094,7 +1094,24 @@ def init_agent(
                         "select a provider, or run `hermes setup` for first-time "
                         "configuration."
                     )
-        
+        _base_for_headers = str(client_kwargs.get("base_url", "") or "")
+        if (
+            base_url_host_matches(_base_for_headers, "api.moonshot.cn")
+            or base_url_host_matches(_base_for_headers, "api.moonshot.ai")
+            or base_url_host_matches(_base_for_headers, "api.kimi.com")
+        ):
+            # Moonshot/Kimi can serve long SSE responses with Brotli when the
+            # optional brotlicffi backend is installed.  httpx/openai's
+            # streaming Brotli decode path can then fail mid-response with
+            # DecodingError("brotli: decoder process called with data when
+            # 'can_accept_more_data()' is False") on very large contexts.  The
+            # model endpoint works; avoid negotiating br for Kimi-family
+            # endpoints so the server falls back to gzip/deflate while keeping
+            # existing provider headers such as the kimi.com User-Agent.
+            _headers = dict(client_kwargs.get("default_headers") or {})
+            _headers.setdefault("Accept-Encoding", "gzip, deflate")
+            client_kwargs["default_headers"] = _headers
+
         agent._client_kwargs = client_kwargs  # stored for rebuilding after interrupt
 
         # Enable fine-grained tool streaming for Claude on OpenRouter.
