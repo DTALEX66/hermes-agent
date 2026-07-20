@@ -18,11 +18,13 @@ class TestResizeObserver {
 }
 
 vi.stubGlobal('ResizeObserver', TestResizeObserver)
+
 Element.prototype.scrollIntoView = function scrollIntoView() {}
 
 function renderPicker(onSelect: (selection: { provider: string; model: string }) => boolean | Promise<boolean>) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const onOpenChange = vi.fn()
+
   const configClient: I18nConfigClient = {
     getConfig: vi.fn().mockResolvedValue({ display: { language: 'en' } }),
     saveConfig: vi.fn()
